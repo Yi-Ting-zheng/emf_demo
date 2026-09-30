@@ -2,21 +2,25 @@
   "framework": "EMF",
   "version": "1.0.3",
   "version_source": "derived from mf_audit.py:VERSION (single source of truth)",
-  "generated_at": "2026-09-30T18:04:09",
-  "file_count": 11,
+  "generated_at": "2026-09-30T19:35:05",
+  "file_count": 12,
   "note": "EMF 框架文件哈希锁。E1 纪律：框架本身亦受预注册约束——修改任何条目必须重生成本清单并记入 CHANGELOG.md。框架有效性问题见 03_规范/GAP-01_元方法论自指缺口.md。",
   "files": {
+    ".gitattributes": {
+      "sha256": "69612fceb2ef137924a30a45f22ffca43ba64cafc83d86a86620f3dc76ed5693",
+      "bytes": 745
+    },
     ".gitignore": {
-      "sha256": "897e373d35f06f823182ab5ceb554fd4e3ad591cc947e7ade1d103e7f426bfef",
-      "bytes": 30
+      "sha256": "332af4aff782997dbd55f89a4cd507b909f03d4c5695bf26bd70fdddb1af13cc",
+      "bytes": 29
     },
     ".zenodo.json": {
       "sha256": "143bbea5c931b5e09c5f6e9ee76034c930049f5e15ddfa7402f793915e6e8686",
       "bytes": 2151
     },
     "CHANGELOG.md": {
-      "sha256": "66bd0f9436544c2b31c5e9e8b63e21f04d4a59a7940290f5daf02b855fc879b8",
-      "bytes": 5229
+      "sha256": "f6544c6f3fb32d36bcf2cf9662b4f45e086f5b65460d45fe6c603691b7110825",
+      "bytes": 6326
     },
     "LICENSE.md": {
       "sha256": "150fee665a438630ad2e42143435f9d0726c41b6dff338efcbd974952d68d679",
@@ -47,8 +51,8 @@
       "bytes": 9061
     },
     "emf_demo/sample/demo_case.md": {
-      "sha256": "bfd1ef9badfe537efe9a44be60300c3d94f50f6717adfb950aa4604c5160e95f",
-      "bytes": 69
+      "sha256": "63ff69a31ce5057c454b036e00f67b48a899053340a657fefed461c4e293116a",
+      "bytes": 68
     }
   }
 }
