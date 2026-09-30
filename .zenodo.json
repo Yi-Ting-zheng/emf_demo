@@ -1,0 +1,30 @@
+{
+  "title": "SiliconLifeOS EMF Demo: 认知方法论框架公开演示 (Truth-Level Discipline + Audit Tooling)",
+  "creators": [
+    {
+      "name": "Yi-Ting-zheng",
+      "affiliation": "SiliconLifeOS / Independent Research"
+    }
+  ],
+  "description": "<p><strong>性质</strong>：方法论与认知结构层的公开演示仓库。不是 AGI 系统，不替代任何模型的推理能力，仅提供认知结构层与过程纪律。研究仪器——面向数学界、研究机构与工程团队；不对 C 端用户开放。</p><p><strong>内容</strong>：(1) EMF 认知方法论框架——8 标签真值分层、12 条元规则、11 条机器审计规则、自动化负向测试；(2) 统一定理（奇数无穷乘积联合鞍点鬼项相消）——主结果 THEOREM-COND（条件于 GAP-OPEN 引理 6.0，未证）；(3) 可迁移方法论成果：证伪≠废止、零违例≠精确、覆盖率表格≠覆盖率、残差冻结判据（K→2K）、Richardson 外推 vs 病态拟合。</p><p><strong>诚实边界</strong>：全部结论的真值层级如实标注，主结果未证；方法论自身有效性未检验（GAP-01，自我认证结构）。允许的表述：结构上可机器审计 / 已应用于 N 个课题（案例级）/ 尚无对照实验。禁止的表述：经验证有效 / 实验表明有效 / AGI 突破。</p><p><strong>许可</strong>：代码 MIT；数学内容与文档 CC-BY-4.0（含真值层级引用义务：引用 THEOREM-COND 结论必须连同条件）。</p>",
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "upload_type": {
+    "type": "publication",
+    "subtype": "workingpaper"
+  },
+  "keywords": [
+    "truth-level discipline",
+    "epistemic methodology",
+    "audit trail",
+    "negative testing",
+    "falsification ledger",
+    "GAP registration",
+    "Richardson extrapolation",
+    "认知方法论",
+    "真值分层",
+    "审计轨迹"
+  ],
+  "notes": "Code files (emf_demo/*.py) are licensed under MIT; mathematical content and documentation under CC-BY-4.0. Reproduce: python mf_audit.py sample / python negative_test.py / python mk_manifest.py --verify",
+  "language": "zho"
+}
