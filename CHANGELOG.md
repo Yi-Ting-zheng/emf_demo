@@ -27,6 +27,26 @@
 
 ## [Unreleased] — 待发布 **1.0.2**（发布闸门 + 克隆可验证性；框架 v1.0.3）
 
+### 修复：`.zenodo.json` 混用 schema 代际，Zenodo ingest 被拒（发布阻断级）
+
+| 项 | 内容 |
+|---|---|
+| 症状 | Zenodo GitHub 集成 `Errors` 面板：`{'metadata': {'resource_type': ['Missing data for required field.']}}`；无版本记录、无版本 DOI |
+| 根因 | 写成 `"upload_type": {"type": "publication", "subtype": "workingpaper"}`。但 Zenodo legacy 反序列化器的契约是**两个平级标量**：`upload_type`（String → `resource_type.type`）与 `publication_type`（String → `resource_type.subtype`）。`subtype` 是**新版 `resource_type` 内部**的键名，放进 `upload_type` 里不认 ⟹ 产不出 `resource_type` ⟹ 校验失败。`upload_type` 写成对象（而非字符串）本身就足以致败 |
+| 修正 | `"upload_type": "publication"` + 平级 `"publication_type": "workingpaper"` |
+| 旁证 | 官方 Zenodo 文档示例为扁平 `"upload_type": "software"`；legacy 受控词表列 `publication_type` ∈ {softwaredocumentation, taxonomictreatment, technicalnote, thesis, workingpaper, other} |
+| 为何闸门没拦住 | 闸门 3 只验「JSON 可解析 + title/description/creators/license 齐备」——**JSON 合法 ≠ Zenodo 接受**。缺陷恰好落在两者之间 |
+| 防线 | 闸门 3 增 `validate_zenodo_meta()`：按受控词表逐条验 `upload_type`（须为字符串）/ `publication_type`（平级、词表内）/ `access_right`；并显式识别 `upload_type.subtype` 代际混用。新增 `--selftest`：**10 例正/反例，含本缺陷的实际 payload**，漏拦 0 / 误拦 0 |
+| 实测 | `release_preflight.py --tag 1.0.2` 对**已存在的 tag 树**判 2 项阻断并直接指出根因；修正提交后判 0 项 |
+| 同源 | 姊妹仓库 `public_theorem` 1.0.0 有**实证错误面板**，为同一缺陷；两仓库同日同型 |
+| 元教训 | 上一轮我把「Zenodo 侧迟迟无记录」误判为服务端性能退化。**真实原因是本地 schema 非法**——服务端是秒回的确定性拒绝。先取错误面板原文，再谈服务端问题 |
+
+### 研究发现：自审全绿（含 preflight）仍放行了坏的 `.zenodo.json`
+
+> 三个缺陷同族：**只检查工作区能通过的属性，而失败发生在产物上**。
+> 闸门 1/2/4 都在做「解包 tag 树后实跑」；唯独闸门 3 验的是**schema 语义**，
+> 而它只验了「可解析」。补齐语义层校验，才使闸门覆盖与失败面一致。
+
 ### 判据修正（依据姊妹仓库 `public_theorem` 自审计裁决，FAIL 16 → 0）
 
 | # | 修正 | 性质 |
@@ -73,14 +93,14 @@
 |---|---|
 | 记录 | https://github.com/Yi-Ting-zheng/emf_demo/releases/tag/1.0.1 |
 | tag 指向 | 3e7a9d8（落后当时 HEAD 5c0a74c 一笔） |
-| 版本 DOI | 由 Zenodo 联动铸出（概念 DOI 10.5281/zenodo.23056474 恒定） |
+| 版本 DOI | **无**。Zenodo 联动 ingest 失败，未铸出版本 DOI（概念 DOI 10.5281/zenodo.23056474 恒定，但仍只有 v1.0.0 一个版本记录） |
 | 缺陷 | 该 tag 的树内**无** .gitattributes，11/11 文本文件为 CRLF，MANIFEST_EMF.json 在归档副本上自校验失败 |
 | 症状 | 下载者执行 mk_manifest.py --verify 得「框架完整性已失守」 |
 | 闸门实测 | 
-elease_preflight.py --tag 1.0.1 判 **4 项阻断**（tag 落后 / 缺 .gitattributes / 归档树 CRLF×11 / 归档树哈希锁不自洽） |
+elease_preflight.py --tag 1.0.1 判 **4 项阻断**（tag 落后 / 缺 .gitattributes / 归档树 CRLF×11 / 归档树哈希锁不自洽）；判 **5 项阻断**（追加 Zenodo schema，见下节） |
 | 根因 | 发布动作（打 tag）与验证动作（跑校验）之间无强制闸门，二者靠人工记忆对齐 |
 | 处置 | **降级不删除**：1.0.1 保留为该缺陷的审计证据；修正走 1.0.2 新版本 DOI |
-| 防线 | emf_demo/release_preflight.py（4 闸门，第 4 项解包 tag 树实跑）已并入发布流程 |
+| 防线 | emf_demo/release_preflight.py（5 闸门，第 4 项解包 tag 树实跑，第 5 项校 Zenodo schema）已并入发布流程 |
 
 ## [1.0.1] — 已发布（2026-09-30）；框架 v1.0.3（审计器判据修正）
 
