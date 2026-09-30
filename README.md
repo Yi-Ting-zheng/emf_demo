@@ -60,6 +60,7 @@ public_demo/
     ├── mf_audit.py             ← 11 条规则机器审计器 v1.0.3
     ├── negative_test.py        ← 自动化测试 12 例（6 假阴性 + 3 假阳性 + 3 豁免边界，违例即 exit 1）
     ├── mk_manifest.py          ← SHA256 哈希锁（版本自动派生自 mf_audit.py）
+    ├── release_preflight.py    ← 发布前置闸门（校验 tag 树而非本机工作区）
     └── sample/
         └── demo_case.md        ← 含一处故意违规的样例（审计器应报 WARN）
 ```
@@ -71,6 +72,7 @@ cd emf_demo
 python mf_audit.py sample          # 样例应报 WARN（强断言句未见 TRL 标签）
 python negative_test.py            # 12 例应全部符合预期
 python mk_manifest.py --verify     # 哈希锁一致性
+python release_preflight.py        # 发布前置闸门（须在打好 tag 后跑）
 ```
 
 ---

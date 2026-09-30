@@ -8,27 +8,41 @@
 
 ## ⚠️ 发布前置校验（任一未过 → 不得发布）
 
-**历史教训（v1.0.0 记录）**：tag `1.0.0` 早于 `.zenodo.json` 的提交，而 Zenodo 联动
-**只从 tag 指向的 commit 读取** `.zenodo.json` → 元数据退回 GitHub 默认（release 标题 +
-未填占位符正文）→ DOI 落地页丢失诚实边界段。根因防线如下：
+**一条命令跑完全部机器可检项**（务必在**打好 tag 之后**执行，让闸门校验 tag 指向的树，
+而不是本机工作区）：
 
 ```bash
-# 1) 元数据文件必须已在【待打 tag 的那个 commit】里（不是 main 的最新状态）
-git cat-file -e HEAD:.zenodo.json && echo "[OK] .zenodo.json 在 HEAD"
-#    若用已有 tag：git cat-file -e <tag>:.zenodo.json
+python emf_demo/release_preflight.py --tag <版本号>
+# 退出码 0 = 可发布；1 = 阻断（逐条列出）
+```
 
-# 2) 哈希锁一致（否则清单失效，归档内容与声明不符）
-cd emf_demo && python mk_manifest.py --verify
+闸门检四项：① tag 是否等于 HEAD（防归档未验证内容）② 归档树是否含 `.gitattributes`
+且固定 `eol=lf` ③ `.zenodo.json` 是否在归档树内且可解析 ④ **把 tag 树解包到临时目录，
+在副本上实跑清单校验 + 审计**。
 
-# 3) 负向测试全检出（6/6，exit 0）
-cd emf_demo && python negative_test.py
+第 ④ 项是决定性的：它检验"Zenodo 实际会归档的东西"是否自洽，等价于人工"克隆一份再跑"，
+但可复现、可挂流程。
 
-# 4) release 正文无未填占位符（形如 <...>）——占位符一旦发布即成为公开记录
-#    粘贴后肉眼复核：表格里不得残留 <版本号> <日期> <THEOREM...> 等尖括号内容
+**历史教训（2026-09-30，两起）**：
+
+| 记录 | 症状 | 根因 | 防线 |
+|---|---|---|---|
+| v1.0.0 | Zenodo 元数据退回 GitHub 默认值，DOI 落地页丢失诚实边界段 | tag 早于 `.zenodo.json` 的提交；联动只读 tag 指向的 commit | 闸门 ③ |
+| 1.0.1 | 归档 11/11 文本文件 CRLF，清单在归档内不自洽 | ① tag 落后 HEAD 一笔 ② 归档树无 `.gitattributes` | 闸门 ①②④ |
+
+> 共同点：**本机自审全绿，产物是坏的**。任何只读工作区的检查都抓不到这类缺陷。
+> 故第 ④ 项必须在**解包副本**上跑，不能用本机 `--verify` 的通过结果代替。
+
+**仍需人工复核的一项**（机器检不了）：
+
+```bash
+# release 正文无未填占位符（形如 <...>）——占位符一旦发布即成为公开记录
+# 粘贴后肉眼复核：表格里不得残留 <版本号> <日期> <THEOREM...> 等尖括号内容
 ```
 
 **tag 命名**：与 `.zenodo.json`/清单声明的版本一致（`1.0.1` 或 `v1.0.1`，全程统一，
 不要混用）。Zenodo 自动为每个新 release 铸**版本 DOI**，concept DOI 恒定。
+**已发布记录的 tag 不可移动**——修正只能走新版本（见「降级不删除」纪律）。
 
 ---
 
