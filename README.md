@@ -57,8 +57,8 @@ public_demo/
 │   ├── release.yml             ← release 自动分类（label → 类别）
 │   └── RELEASE_TEMPLATE.md     ← release 正文模板（诚实边界为必填段）
 └── emf_demo/                   ← 审计纪律的完整可复现样本
-    ├── mf_audit.py             ← 11 条规则机器审计器 v1.0.2
-    ├── negative_test.py        ← 自动化负向测试（6 项违规集，漏检即 exit 1）
+    ├── mf_audit.py             ← 11 条规则机器审计器 v1.0.3
+    ├── negative_test.py        ← 自动化测试 12 例（6 假阴性 + 3 假阳性 + 3 豁免边界，违例即 exit 1）
     ├── mk_manifest.py          ← SHA256 哈希锁（版本自动派生自 mf_audit.py）
     └── sample/
         └── demo_case.md        ← 含一处故意违规的样例（审计器应报 WARN）
@@ -69,7 +69,7 @@ public_demo/
 ```bash
 cd emf_demo
 python mf_audit.py sample          # 样例应报 WARN（强断言句未见 TRL 标签）
-python negative_test.py            # 6 项违规应全部检出
+python negative_test.py            # 12 例应全部符合预期
 python mk_manifest.py --verify     # 哈希锁一致性
 ```
 
@@ -80,6 +80,9 @@ python mk_manifest.py --verify     # 哈希锁一致性
 - 全部文档 SHA256 哈希锁（`MANIFEST_EMF.json`；11 文件；版本字段自动派生自 `mf_audit.py`，杜绝重复常量漂移）
 - 勘误附录 append-only 双前缀守卫（55210 / 74972 bytes，`U+FFFD=0`）
 - 审计器假阴性登记（`GAP-03`）：v1.0.1 三个假阴性经负向测试确认，v1.0.2 已修
+- 审计器**假阳性**登记：v1.0.3 判死一条**前提被实测证伪**的规则（A-04「`mp.mp.dps` 不生效」——
+  mpmath 1.3.0 实测 `mpmath.mp` 即工作 context）；负向测试自此补入假阳性对照组，
+  因为**只测假阴性的套件无法证明规则还活着**
 - 每条撤回三要素写全（原断言 / 证伪 / 取代者），编号不复用
 - 已检出的自身缺陷登记于 `CHANGELOG.md`（含 Zenodo v1.0.0 记录元数据缺陷——**降级不删除**）
 

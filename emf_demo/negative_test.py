@@ -64,8 +64,46 @@ CASES = [
      "A-10"),
 ]
 
+# ─────────────────────────────────────────────────────────────
+# 假阳性对照（FP 组）—— v1.0.3 新增
+#
+# 为什么必须补：原套件只测**假阴性**（植入违规 ⟹ 断言检出）。
+# 一个"永不触发的规则"能通过全部 6 项负向测试 ⟹ A-04 的被证伪前提
+# （mp.mp.dps 不生效）得以存活 v1.0.0 → v1.0.2 两个版本，无人察觉。
+#
+# **没有假阳性对照的测试套件，无法证明规则还活着。**
+# 判据：以下内容**不得**被判为 FAIL（INFO 视为通过 —— 可见即可，不阻断）。
+# ─────────────────────────────────────────────────────────────
+FP_CASES = [
+    ("FP1 mp.mp.dps 是 mpmath 官方工作 context 写法（A-04 前提已实测证伪）",
+     {"fp1_mp.py": "import mpmath\nmpmath.mp.dps = 60\nprint(mpmath.mpf(2) ** 0.5)\n"},
+     "A-04"),
+    ("FP2 HTML 标签与数学比较片段非占位符（A-07 结构判别）",
+     {"fp2_ph.md": "# FP2\n\n第一行<br>第二行；判定条件为 th 小于 pi/2 时取 a，pi/2 与 theta 另议。\n"},
+     "A-07"),
+    ("FP3 corrective 语境（记录该错误已被纠正）不是合取断言（A-10）",
+     {"fp3_disj.md": "# FP3\n\n| F-5 | TC-4c「三项皆假」| `FALSIFIED` | 逆否命题只得析取：至多「至少一项为假」|\n"},
+     "A-10"),
+]
+
+# 裁决记录豁免的三条边界（同一机制，正反双向断言）
+EXEMPT_DECL = "<!-- audit-record: A-07 -->\n"
+EXEMPT_CASES = [
+    ("E1 声明在文件头 ⟹ 对应规则降级为 INFO（非 FAIL）",
+     {"e1_rec.md": EXEMPT_DECL + "# E1\n\n参数为 <待填参数> 未替换。\n"}, "A-07", True),
+    ("E2 无声明 ⟹ 不豁免（文件名不构成豁免依据）",
+     {"e2_plain.md": "# E2\n\n参数为 <待填参数> 未替换。\n"}, "A-07", False),
+    ("E3 声明含未知规则编号 ⟹ fail-closed，豁免不生效",
+     {"e3_unknown.md": "<!-- audit-record: A-99 -->\n# E3\n\n参数为 <待填参数> 未替换。\n"}, "A-07", False),
+]
+
 
 def run_case(work: str, files: dict, want_rule: str) -> tuple[bool, list]:
+    # v1.0.3：每个用例独占子目录 —— 否则前序用例的违规文件会污染后续断言
+    # （曾致 FP2/FP3 报"假阳性"，实为测试夹具污染，非规则缺陷）
+    if os.path.isdir(work):
+        shutil.rmtree(work)
+    os.makedirs(work)
     for name, content in files.items():
         with open(os.path.join(work, name), "w", encoding="utf-8") as f:
             f.write(content)
@@ -103,20 +141,54 @@ def main() -> int:
         if not ok:
             missed.append(name)
 
-    print(f"\n{'=' * 60}")
-    if missed:
-        print(f"裁定：❌ {len(missed)}/{len(CASES)} 违规漏检 —— 审计器假阴性，须修复：")
-        for m_ in missed:
-            print(f"      - {m_}")
-        print("      （假阴性比假阳性更危险：'零违规'输出从此毫无价值）")
+    # ── 假阳性对照 ────────────────────────────────────────────
+    print(f"\n{'-'*60}")
+    print("假阳性对照（FP）：以下内容不得被判 FAIL")
+    print(f"{'-'*60}")
+    fp_bad = []
+    for name, files, rule in FP_CASES:
+        _, hits = run_case(work, files, rule)
+        fails = [f for f in hits if f.get("severity") == "FAIL"]
+        ok = not fails
+        print(f"\n[{'✅ 无假阳性' if ok else '❌ 假阳性'}] {name}   规则={rule}  FAIL={len(fails)}")
+        for f in fails[:3]:
+            print(f"      {f['file']}:{f['line']}  {f['message']}")
+        if not ok:
+            fp_bad.append(name)
+
+    # ── 裁决记录豁免边界 ──────────────────────────────────────
+    print(f"\n{'-'*60}")
+    print("裁决记录豁免边界（E）：声明在头 ⟹ 非 FAIL；无声明/未知编号 ⟹ 仍 FAIL")
+    print(f"{'-'*60}")
+    ex_bad = []
+    for name, files, rule, want_pass in EXEMPT_CASES:
+        _, hits = run_case(work, files, rule)
+        fails = [f for f in hits if f.get("severity") == "FAIL"]
+        ok = (not fails) if want_pass else bool(fails)
+        tag = "✅ 符合预期" if ok else "❌ 边界失效"
+        print(f"\n[{tag}] {name}   规则={rule}  FAIL={len(fails)}（期望{'非 FAIL' if want_pass else 'FAIL'}）")
+        if not ok:
+            ex_bad.append(name)
+
+    print(f"\n{'='*60}")
+    bad = missed + fp_bad + ex_bad
+    if bad:
+        print(f"裁定：❌ 假阴性 {len(missed)} / 假阳性 {len(fp_bad)} / 豁免边界 {len(ex_bad)} —— 审计器不可信，须修复：")
+        for b in bad:
+            print(f"      - {b}")
+        if missed:
+            print("      （假阴性比假阳性更危险：'零违规'输出从此毫无价值）")
+        if fp_bad:
+            print("      （假阳性会训练复核者忽略审计输出 —— A-04 前提被证伪却存活两版即此因）")
     else:
-        print(f"裁定：✅ 全部 {len(CASES)} 项违规被检出，无假阴性")
+        print(f"裁定：✅ 假阴性 0/{len(CASES)}、假阳性 0/{len(FP_CASES)}、"
+              f"豁免边界 {len(EXEMPT_CASES)}/{len(EXEMPT_CASES)} 全部符合预期")
 
     if not args.keep:
         shutil.rmtree(work)
     else:
         print(f"\n(临时项目保留: {work})")
-    return 1 if missed else 0
+    return 1 if (missed or fp_bad or ex_bad) else 0
 
 
 if __name__ == "__main__":

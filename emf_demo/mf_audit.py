@@ -1,13 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-mf_audit.py — EMF 方法论机器审计器 v1.0.2
+mf_audit.py — EMF 方法论机器审计器 v1.0.3
 
 把 00_总纲/01_元规则库 的纪律变成可执行检查。
 设计原则（依 R04/R06 精神）：
   - 每条规则自身须标 TRL 层级与可靠性，不得越级宣称
   - 启发式规则只报 WARN，不报 FAIL（防止审计器自身成为 F-2 型假阳性源）
   - 无判假条件的规则不得用于阻断
+
+v1.0.3 修正（依据：姊妹仓库 public_theorem 自审计裁决 SELF_AUDIT.md；FAIL 16 → 真问题 2 / 规则误报 14）:
+  - A-04 **规则前提被实测证伪**：`mp.mp.dps = N` 判「落在非工作 context、不生效」不成立 ——
+    mpmath 1.3.0 实测 `mpmath.mp` 即工作 context，赋值后 `mp.mp.dps == 50` 为 True。该模式删除
+    （`import mpmath as mp; mp.dps = N` 的模块属性赋值缺陷仍由文件级模式覆盖，N1 不受影响）。
+  - A-07 改**结构判别**（原为形态判据「尖括号」）：豁免 HTML 标签与数学比较片段（如 th 小于 pi/2），
+    仅对具备「可被粘贴覆盖」结构特征的 token 报 FAIL。
+  - A-09 规则消息不再硬编码 `03_缺口登记/`（旧布局遗留），改为回填本项目实际登记表路径。
+  - A-10 增加 corrective 语境识别：记载「逆否只得析取 / 已 FALSIFIED / 逻辑错误」的文本降为 INFO
+    （可见、不阻断）；此前这类**记录错误已被纠正**的文本一律 FAIL。
+  - 新增**裁决记录豁免**：文件头 5 行内以 `<!-- audit-record: ... -->` 声明后，该文件对应规则的
+    发现降为 INFO 并单独计数打印；声明含未知规则编号则 fail-closed（豁免不生效）。
+  - negative_test.py 新增**假阳性对照**（FP 组）：此前只测假阴性 ⟹ 被证伪的规则前提可存活两个版本。
 
 v1.0.2 修正（用户授权：立项后未及时发现的缺口，及时补正；详见 CHANGELOG #12）:
   - A-04 pattern2 双重死亡修复（反斜杠-dollar 误转义 + 逐行循环喂单行 ⟹ 多行模式永不匹配）
@@ -40,7 +53,7 @@ from collections import Counter
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 # ─────────────────────────────────────────────────────────────
 # 框架自身目录（自举豁免；v1.0.2 前移定义 —— 此前定义在 a03/a06 之后，
@@ -91,6 +104,110 @@ FORBIDDEN_EFFECTIVITY = [
 # （CHANGELOG #8 "死分支制造覆盖率幻觉"同类；❌ 案例由 NEG_CONTEXT 兜住）。
 # 占位符未替换检测
 PLACEHOLDER = re.compile(r"<[A-Za-z_一-鿿][^>\n]{0,80}>")
+
+# ─────────────────────────────────────────────────────────────
+# v1.0.3 结构判据（A-07）：形态 → 结构
+#
+# 根因（public_theorem/SELF_AUDIT.md §4，五次复发）：以**形态**（尖括号）而非
+# **结构**（是否具备"可被粘贴覆盖"的特征）为判据的规则，一旦该形态成为被记录的对象，
+# 规则即恒触发 —— 记录行为本身制造违规。
+#
+# 结构判据：token 是否像"一个待填槽位"。
+#   - HTML 标签（<br>、</p> …）      → 结构上不是槽位
+#   - 数学比较片段（th<pi/2）        → `<` 是运算符，`>` 是行尾，闭合成 token 属巧合
+#   - 裸数学符号（<pi>、<theta>）    → 同上
+#   - 其余（含下划线/空格/中文/斜杠结尾）→ 仍是槽位 ⟹ FAIL
+# 已知残余局限：`<n>` 这类单字母小写 token 仍被判为占位符（保守方向，宁误报不漏报）。
+# ─────────────────────────────────────────────────────────────
+HTML_TAGS = {
+    "br", "p", "hr", "b", "i", "em", "strong", "code", "pre", "a", "ul", "ol",
+    "li", "table", "thead", "tbody", "tr", "td", "th", "div", "span", "sub",
+    "sup", "img", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "kbd",
+}
+# 须含运算符才算数学片段：pi/2、th^2、x_1 —— 单字母不豁免（见残余局限）
+MATH_FRAGMENT = re.compile(r"^[a-z0-9]+[/^_][a-z0-9]+$")
+MATH_SYMBOLS = {
+    "pi", "th", "theta", "delta", "eps", "epsilon", "lambda", "gamma",
+    "alpha", "beta", "phi", "mu", "nu", "rho", "sigma", "tau", "omega",
+}
+
+
+def is_placeholder_token(inner: str) -> bool:
+    """A-07 结构判据：True = 像待填槽位（FAIL）；False = HTML/数学/代码跨距形态。"""
+    low = inner.lower()
+    # 含反引号 ⟹ 该跨度跨越了代码 span（`<pi/2` 直到下一个 `>` 才是真正闭合），
+    # 结构上是行文/代码，不是待填槽位。v1.0.3 前这条曾致勘误附录 3 处误报。
+    if "`" in inner:
+        return False
+    if low in HTML_TAGS:
+        return False
+    if MATH_FRAGMENT.match(low):
+        return False
+    if low in MATH_SYMBOLS:
+        return False
+    return True
+
+
+# ─────────────────────────────────────────────────────────────
+# v1.0.3 裁决记录豁免（R00 精神：豁免必须可被 grep 统计、必须 fail-closed）
+#
+# 动机：裁决记录必须复述规则的触发形态才能被审查，于是记录本身必然触发规则
+#       （SELF_AUDIT.md §4 的五次复发）。不给窄豁免，审计结果会随记录行为单调增长，
+#       "零违规"将永不可达 —— 指标被记录行为污染即失去度量资格。
+#
+# 约束（刻意收窄，防止豁免沦为免检通道）：
+#   1. 须在文件**头 5 行**内显式声明 `<!-- audit-record: A-07,A-10 -->`
+#   2. 只豁免**声明中列出的规则**在该文件内的发现，不豁免该文件的其他内容
+#   3. 豁免后的发现**降为 INFO 而非删除**，并在汇总中单独计数打印（豁免 12 条 ≠ 没有 12 条）
+#   4. 声明含**未知规则编号** ⟹ 整个声明 fail-closed（豁免不生效）+ WARN
+#   5. 无声明的文件（哪怕叫 SELF_AUDIT.md）**不豁免** —— 由负向测试 FP-N3 守住
+#
+# 已知局限（诚实登记）：一个刻意声明自身为裁决记录的文件仍可藏问题。
+# 缓解手段 = 上述第 3 条（计数可见）与第 4 条（未知编号失效）。
+# ─────────────────────────────────────────────────────────────
+AUDIT_RECORD_DECL = re.compile(r"<!--\s*audit-record:\s*([^>]*?)-->")
+AUDIT_RECORD_HEAD = 5
+AUDIT_RECORD_COUNT: Counter = __import__("collections").Counter()
+_DECL_CACHE: dict[str, tuple[set[str], set[str]]] = {}
+
+
+def audit_record_decl(root: str, r: str) -> tuple[set[str], set[str]]:
+    """返回 (已声明规则, 未知规则)。仅看文件头 AUDIT_RECORD_HEAD 行。"""
+    if r in _DECL_CACHE:
+        return _DECL_CACHE[r]
+    t = read(os.path.join(root, r.replace("/", os.sep)))
+    head = "\n".join(t.splitlines()[:AUDIT_RECORD_HEAD])
+    m = AUDIT_RECORD_DECL.search(head)
+    if not m:
+        res = (set(), set())
+    else:
+        raw = {x.strip() for x in m.group(1).split(",") if x.strip()}
+        res = (raw & set(RULES), raw - set(RULES))
+    _DECL_CACHE[r] = res
+    return res
+
+
+def apply_audit_record_exemption(root: str, out: list[Finding]) -> None:
+    """裁决记录豁免：在 run() 末尾统一施加，避免各规则各自实现而遗漏。"""
+    warned: set[str] = set()
+    for f in list(out):
+        if f.severity not in ("FAIL", "WARN"):
+            continue
+        declared, unknown = audit_record_decl(root, f.file)
+        if unknown and f.file not in warned:
+            warned.add(f.file)
+            out.append(Finding(
+                "A-11", "WARN", "EMPIRICAL", f.file, 1,
+                f"裁决记录声明含未知规则编号 {sorted(unknown)}；该声明 fail-closed，豁免未生效",
+                f.snippet[:110],
+                note="声明只接受 --list-rules 中已登记的规则编号，防止豁免沦为免检通道。",
+            ))
+            continue
+        if f.rule in declared:
+            f.severity = "INFO"
+            f.note = ("[裁决记录豁免] " + f.note).strip()
+            AUDIT_RECORD_COUNT[f.rule] += 1
+
 
 SEVERITY = {"FAIL": 2, "WARN": 1, "INFO": 0}
 
@@ -315,9 +432,13 @@ def a03(root: str, out: list[Finding]) -> None:
 # v1.0.2 修正：多行模式拆出为文件级检查 —— 此前混在逐行循环里，
 # pattern.search(line) 只喂单行 ⟹ 含 \n 的模式永不匹配（双重死亡：
 # 且原式中 \$ 被转义成字面美元符，本意是行尾锚）。
+#
+# v1.0.3 **删除** `mp.mp.dps = N` 判据 —— 其前提已被实测证伪（不得以"疑似"结案）：
+#   mpmath 1.3.0：`mpmath.mp` **就是**工作 context；执行 `mp.mp.dps = 50` 后
+#   读回 `mp.mp.dps` 为 50 ⟹ 设置**确实生效**。该写法是官方推荐写法。
+#   仍存的真实缺陷是**模块属性赋值**（见下方文件级模式，N1 覆盖）。
 # ─────────────────────────────────────────────────────────────
 BAD_PRECISION = [
-    (re.compile(r"\bmp\.mp\.dps\s*="), "精度设置落在 mp.mp（非工作 context），实际不生效（CASE-02 缺陷1）"),
     (re.compile(r"float\(\s*iv"), "区间端点经 float()，宽度会归零（CASE-02 缺陷2）"),
 ]
 # 文件级多行模式：对全文 finditer，逐行循环永远无法匹配多行结构
@@ -468,16 +589,22 @@ def a07(root: str, out: list[Finding]) -> None:
         t = read(p)
         lines = t.splitlines()
         for i, line in enumerate(lines, 1):
-            if not PLACEHOLDER.search(line):
+            ms = list(PLACEHOLDER.finditer(line))
+            if not ms:
                 continue
             if _in_fence(lines, i - 1):
                 continue
             if "[PH-OK]" in line:
                 EXEMPT_COUNT["A-07"] += 1
                 continue
+            # v1.0.3 结构判别：逐 token 判"是否具备可被粘贴覆盖的结构特征"，
+            # 而非只看是否存在尖括号（形态判据 → 记录即触发，五次复发）。
+            real = [m.group(0) for m in ms if is_placeholder_token(m.group(0)[1:-1])]
+            if not real:
+                continue
             out.append(Finding(
                 "A-07", "FAIL", "DEFINITION", r, i,
-                "占位符未替换", line.strip()[:110],
+                f"占位符未替换: {', '.join(real[:3])}", line.strip()[:110],
                 note="实例文件不得留占位符。确为示例请加 [PH-OK] 或移入 02_模板/。",
             ))
 
@@ -537,6 +664,16 @@ GAP_REGISTRY = re.compile(r"缺口登记|GAP[-_]?登记|gap_register")
 
 
 def a09(root: str, out: list[Finding]) -> None:
+    # v1.0.3：登记表路径**从本项目实测回填**，不再硬编码 `03_缺口登记/`
+    # （该路径是旧布局遗留，在 PI^π 类项目中实际为 04_缺口/缺口登记.md，
+    #  硬编码会让规则消息与项目实际不符 ⟹ 复核者被误导）。
+    registry = None
+    for q in walk(root, MD_EXT):
+        rq = rel(root, q)
+        if GAP_REGISTRY.search(rq):
+            registry = rq
+            break
+    registry_hint = registry or "本项目未发现缺口登记表（文件名须含 缺口登记/gap_register）"
     for p in walk(root, MD_EXT):
         r = rel(root, p)
         if GAP_REGISTRY.search(r) or "GAP-01_元方法论自指缺口" in r:
@@ -551,7 +688,7 @@ def a09(root: str, out: list[Finding]) -> None:
                         "A-09", "FAIL", "DEFINITION", r, i,
                         "缺口记录声明出现在登记表之外",
                         line.strip()[:110],
-                        note="R01：缺口记录只能落在 03_缺口登记/ 目录；"
+                        note=f"R01：缺口记录只能落在登记表（实测：{registry_hint}）；"
                              "他处只能以文字引用 GAP-nn 编号。",
                     ))
                     break
@@ -562,6 +699,13 @@ def a09(root: str, out: list[Finding]) -> None:
 # ─────────────────────────────────────────────────────────────
 BAD_DISJ = re.compile(
     r"(三项皆假|皆假|三个(?:小)?实例同时证伪|同时证伪)"
+)
+# v1.0.3 corrective 语境：记录「该错误已被纠正」的文本不是断言，
+# 此前一律 FAIL ⟹ 6 处 FALSIFIED 台账/裁定记录被判违规（审计器制造违规）。
+# 判据为**语境词**（逆否/析取/纠错/逻辑错误…），非"是否为已知坏句"。
+CORRECTIVE = re.compile(
+    r"(逆否|析取|合取|纠错|自纠|误写|逻辑错误|已被证伪|已证伪|已纠正|纠正|"
+    r"FALSIFIED|至多|至少一项|不得写为|只能写为|须写为)"
 )
 
 
@@ -592,9 +736,11 @@ def a10(root: str, out: list[Finding]) -> None:
                 continue
             if exempt("A-10", line):
                 continue
+            # v1.0.3：corrective 语境降 INFO（可见、不阻断）
+            sev = "INFO" if CORRECTIVE.search(s) else "FAIL"
             out.append(Finding(
-                "A-10", "FAIL", "DEFINITION", r, i,
-                "疑似将逆否的析取结论误写为合取",
+                "A-10", sev, "DEFINITION", r, i,
+                "疑似将逆否的析取结论误写为合取" + ("（corrective 语境，仅提示）" if sev == "INFO" else ""),
                 s[:110],
                 note="R11：¬(P∧Q∧R)=¬P∨¬Q∨¬R，只能推出'至少一项为假'。",
             ))
@@ -663,6 +809,8 @@ def run(root: str, only: set[str] | None) -> list[Finding]:
         if only and rid not in only:
             continue
         fn(root, out)
+    # v1.0.3：裁决记录豁免统一在此施加（各规则不自行实现，避免遗漏）
+    apply_audit_record_exemption(root, out)
     return out
 
 
@@ -692,12 +840,13 @@ def main() -> int:
 
     fails = [f for f in findings if f.severity == "FAIL"]
     warns = [f for f in findings if f.severity == "WARN"]
+    infos = [f for f in findings if f.severity == "INFO"]
 
     if args.json:
         print(json.dumps({
             "version": VERSION,
             "root": root,
-            "counts": {"FAIL": len(fails), "WARN": len(warns)},
+            "counts": {"FAIL": len(fails), "WARN": len(warns), "INFO": len(infos)},
             "verdict": "FAIL" if fails else ("WARN" if warns else "PASS"),
             "findings": [f.__dict__ for f in findings],
         }, ensure_ascii=False, indent=2))
@@ -705,7 +854,7 @@ def main() -> int:
     else:
         print(f"\n=== EMF mf_audit v{VERSION} ===")
         print(f"target: {root}")
-        for sev, group in (("FAIL", fails), ("WARN", warns)):
+        for sev, group in (("FAIL", fails), ("WARN", warns), ("INFO", infos)):
             if not group:
                 continue
             print(f"\n--- {sev} ({len(group)}) ---")
@@ -726,12 +875,16 @@ def main() -> int:
                     print(f"  ... 另 {len(items)-12} 条")
 
     print(f"\n{'='*50}")
-    print(f"FAIL={len(fails)}  WARN={len(warns)}")
+    print(f"FAIL={len(fails)}  WARN={len(warns)}  INFO={len(infos)}")
     if EXEMPT_COUNT:
         tot = sum(EXEMPT_COUNT.values())
         print(f"显式豁免={tot}  " + "  ".join(f"{k}:{v}" for k, v in sorted(EXEMPT_COUNT.items())))
         if tot > 3:
             print("⚠️  豁免率偏高，须人工复审（R00：豁免必须可被 grep 统计）")
+    if AUDIT_RECORD_COUNT:
+        n = sum(AUDIT_RECORD_COUNT.values())
+        print(f"裁决记录豁免={n}  " + "  ".join(f"{k}:{v}" for k, v in sorted(AUDIT_RECORD_COUNT.items())))
+        print("   （豁免≠无问题：这些条目已降为 INFO 并在上方 INFO 段逐条可见）")
     if fails:
         print("裁定：❌ 有阻断级违规（FAIL）")
     elif warns and args.strict:
@@ -741,7 +894,6 @@ def main() -> int:
     else:
         print("裁定：✅ 无违规")
     print(f"{'='*50}\n")
-
     if fails:
         return 1
     if warns and args.strict:
