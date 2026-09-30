@@ -2,7 +2,7 @@
   "framework": "EMF",
   "version": "1.0.3",
   "version_source": "derived from mf_audit.py:VERSION (single source of truth)",
-  "generated_at": "2026-09-30T19:45:56",
+  "generated_at": "2026-09-30T19:47:37",
   "file_count": 13,
   "note": "EMF 框架文件哈希锁。E1 纪律：框架本身亦受预注册约束——修改任何条目必须重生成本清单并记入 CHANGELOG.md。框架有效性问题见 03_规范/GAP-01_元方法论自指缺口.md。",
   "files": {
@@ -19,8 +19,8 @@
       "bytes": 2151
     },
     "CHANGELOG.md": {
-      "sha256": "32143753adb24e0f96fe615a38fcb905567e4c2ad2452410b3a8c2fcee2bb9c7",
-      "bytes": 7121
+      "sha256": "4f4dd9dc53dc82fc830107c759f84043bb988aab20098d94d7a6aafdb15e39b6",
+      "bytes": 9471
     },
     "LICENSE.md": {
       "sha256": "150fee665a438630ad2e42143435f9d0726c41b6dff338efcbd974952d68d679",
