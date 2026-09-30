@@ -1,0 +1,33 @@
+{
+  "framework": "EMF",
+  "version": "1.0.1",
+  "generated_at": "2026-09-30T13:31:24",
+  "file_count": 6,
+  "note": "EMF 框架文件哈希锁。E1 纪律：框架本身亦受预注册约束——修改任何条目必须重生成本清单并记入 CHANGELOG.md。框架有效性问题见 03_规范/GAP-01_元方法论自指缺口.md。",
+  "files": {
+    ".gitignore": {
+      "sha256": "897e373d35f06f823182ab5ceb554fd4e3ad591cc947e7ade1d103e7f426bfef",
+      "bytes": 30
+    },
+    "README_PUBLIC.md": {
+      "sha256": "2ca89b950cdb1dfa559bcabe10ca2dfff64da404f47a067c90ebdc21f037f219",
+      "bytes": 4689
+    },
+    "emf_demo/mf_audit.py": {
+      "sha256": "81e1aa9c9b27d304a6a60e7990da5b5e415c74e9bcdbc74d0c2b98e726024d41",
+      "bytes": 36749
+    },
+    "emf_demo/mk_manifest.py": {
+      "sha256": "4107a24c90b1bd5763c759505d877f815e68eaea3e06d59932855e19242c4856",
+      "bytes": 3431
+    },
+    "emf_demo/negative_test.py": {
+      "sha256": "fca2c00da107f98270defc63831e4c7829dba9f4961036e1b372e3df52a54098",
+      "bytes": 4702
+    },
+    "emf_demo/sample/demo_case.md": {
+      "sha256": "bfd1ef9badfe537efe9a44be60300c3d94f50f6717adfb950aa4604c5160e95f",
+      "bytes": 69
+    }
+  }
+}
