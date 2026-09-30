@@ -48,7 +48,7 @@
 
 ```
 public_demo/
-├── README_PUBLIC.md            ← 本文件（公开入口，诚实边界置顶）
+├── README.md                   ← 本文件（公开入口，诚实边界置顶，GitHub 自动渲染）
 ├── .gitignore
 └── emf_demo/                   ← 审计纪律的完整可复现样本
     ├── mf_audit.py             ← 11 条规则机器审计器 v1.0.2

@@ -1,0 +1,20 @@
+changelog:
+  exclude:
+    labels:
+      - ignore
+  categories:
+    - title: 数学结论（THEOREM / 闭合式）
+      labels:
+        - theorem
+    - title: 假阴性修复
+      labels:
+        - fix-negative
+    - title: 审计器与工具
+      labels:
+        - tooling
+    - title: 文档与登记
+      labels:
+        - docs
+    - title: Other Changes
+      labels:
+        - "*"
