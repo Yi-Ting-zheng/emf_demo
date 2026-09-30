@@ -49,11 +49,17 @@
 ```
 public_demo/
 ├── README.md                   ← 本文件（公开入口，诚实边界置顶，GitHub 自动渲染）
+├── CHANGELOG.md                ← 变更登记（含已检出缺陷，缺陷不删除只降级）
+├── LICENSE.md                  ← 双协议：代码 MIT / 数学内容与文档 CC-BY-4.0
+├── .zenodo.json                ← Zenodo 联动元数据（仅从 tag 指向的 commit 读取）
 ├── .gitignore
+├── .github/
+│   ├── release.yml             ← release 自动分类（label → 类别）
+│   └── RELEASE_TEMPLATE.md     ← release 正文模板（诚实边界为必填段）
 └── emf_demo/                   ← 审计纪律的完整可复现样本
     ├── mf_audit.py             ← 11 条规则机器审计器 v1.0.2
     ├── negative_test.py        ← 自动化负向测试（6 项违规集，漏检即 exit 1）
-    ├── mk_manifest.py          ← SHA256 哈希锁生成/校验
+    ├── mk_manifest.py          ← SHA256 哈希锁（版本自动派生自 mf_audit.py）
     └── sample/
         └── demo_case.md        ← 含一处故意违规的样例（审计器应报 WARN）
 ```
@@ -71,10 +77,23 @@ python mk_manifest.py --verify     # 哈希锁一致性
 
 ## 3. 审计轨迹（可审查性层）
 
-- 全部文档 SHA256 哈希锁（`MANIFEST_EMF.json`；15 文件）
+- 全部文档 SHA256 哈希锁（`MANIFEST_EMF.json`；11 文件；版本字段自动派生自 `mf_audit.py`，杜绝重复常量漂移）
 - 勘误附录 append-only 双前缀守卫（55210 / 74972 bytes，`U+FFFD=0`）
 - 审计器假阴性登记（`GAP-03`）：v1.0.1 三个假阴性经负向测试确认，v1.0.2 已修
 - 每条撤回三要素写全（原断言 / 证伪 / 取代者），编号不复用
+- 已检出的自身缺陷登记于 `CHANGELOG.md`（含 Zenodo v1.0.0 记录元数据缺陷——**降级不删除**）
+
+### 归档与引用（Zenodo）
+
+| 项 | 值 |
+|---|---|
+| concept DOI（恒定，引用首选） | [`10.5281/zenodo.23056474`](https://doi.org/10.5281/zenodo.23056474) |
+| 版本 DOI（v1.0.0） | [`10.5281/zenodo.23056475`](https://doi.org/10.5281/zenodo.23056475) |
+| 记录页 | https://zenodo.org/records/23056475 |
+| 许可（记录级） | CC-BY-4.0（代码 MIT，见 `LICENSE.md`） |
+
+> **引用时必须带真值层级**（许可条件）：本仓库主结果为 `THEOREM-COND`，条件于
+> `GAP-OPEN` 引理 6.0，**未证**。仅引用 DOI 而不带层级标签，视为违反许可。
 
 ---
 
@@ -98,4 +117,4 @@ python mk_manifest.py --verify     # 哈希锁一致性
 
 ---
 
-*SiliconLifeOS | public_demo | 研究仪器 | 不对 C 端开放 | E5 纪律 | GAP-OPEN*
+*SiliconLifeOS | public_demo | 研究仪器 | 不对 C 端开放 | E5 纪律 | GAP-OPEN | DOI 10.5281/zenodo.23056474*

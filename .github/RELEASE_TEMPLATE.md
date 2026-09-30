@@ -6,6 +6,32 @@
 
 ---
 
+## ⚠️ 发布前置校验（任一未过 → 不得发布）
+
+**历史教训（v1.0.0 记录）**：tag `1.0.0` 早于 `.zenodo.json` 的提交，而 Zenodo 联动
+**只从 tag 指向的 commit 读取** `.zenodo.json` → 元数据退回 GitHub 默认（release 标题 +
+未填占位符正文）→ DOI 落地页丢失诚实边界段。根因防线如下：
+
+```bash
+# 1) 元数据文件必须已在【待打 tag 的那个 commit】里（不是 main 的最新状态）
+git cat-file -e HEAD:.zenodo.json && echo "[OK] .zenodo.json 在 HEAD"
+#    若用已有 tag：git cat-file -e <tag>:.zenodo.json
+
+# 2) 哈希锁一致（否则清单失效，归档内容与声明不符）
+cd emf_demo && python mk_manifest.py --verify
+
+# 3) 负向测试全检出（6/6，exit 0）
+cd emf_demo && python negative_test.py
+
+# 4) release 正文无未填占位符（形如 <...>）——占位符一旦发布即成为公开记录
+#    粘贴后肉眼复核：表格里不得残留 <版本号> <日期> <THEOREM...> 等尖括号内容
+```
+
+**tag 命名**：与 `.zenodo.json`/清单声明的版本一致（`1.0.1` 或 `v1.0.1`，全程统一，
+不要混用）。Zenodo 自动为每个新 release 铸**版本 DOI**，concept DOI 恒定。
+
+---
+
 ```markdown
 ## 版本与真值层级
 
