@@ -31,7 +31,8 @@
 
 | 项 | 内容 |
 |---|---|
-| 症状 | Zenodo GitHub 集成 `Errors` 面板：`{'metadata': {'resource_type': ['Missing data for required field.']}}`；无版本记录、无版本 DOI |
+| 症状 | Zenodo GitHub 集成 `Errors` 面板：`{'metadata': {'resource_type': ['Missing data for required field.']}}`；提交当时面板显示「无版本记录、无版本 DOI」 |
+| 事后更正 | 该面板状态是**提交当时**的快照，不是终态。Zenodo 事后重试 ingest 成功，1.0.1 最终铸出 `10.5281/zenodo.23065720`。曾据该面板判定「1.0.1 无版本 DOI」，此判定错误 |
 | 根因 | 写成 `"upload_type": {"type": "publication", "subtype": "workingpaper"}`。但 Zenodo legacy 反序列化器的契约是**两个平级标量**：`upload_type`（String → `resource_type.type`）与 `publication_type`（String → `resource_type.subtype`）。`subtype` 是**新版 `resource_type` 内部**的键名，放进 `upload_type` 里不认 ⟹ 产不出 `resource_type` ⟹ 校验失败。`upload_type` 写成对象（而非字符串）本身就足以致败 |
 | 修正 | `"upload_type": "publication"` + 平级 `"publication_type": "workingpaper"` |
 | 旁证 | 官方 Zenodo 文档示例为扁平 `"upload_type": "software"`；legacy 受控词表列 `publication_type` ∈ {softwaredocumentation, taxonomictreatment, technicalnote, thesis, workingpaper, other} |
@@ -40,6 +41,7 @@
 | 实测 | `release_preflight.py --tag 1.0.2` 对**已存在的 tag 树**判 2 项阻断并直接指出根因；修正提交后判 0 项 |
 | 同源 | 姊妹仓库 `public_theorem` 1.0.0 有**实证错误面板**，为同一缺陷；两仓库同日同型 |
 | 元教训 | 上一轮我把「Zenodo 侧迟迟无记录」误判为服务端性能退化。**真实原因是本地 schema 非法**——服务端是秒回的确定性拒绝。先取错误面板原文，再谈服务端问题 |
+| 元教训 2 | **集成面板 ≠ 终态**。Errors 面板是提交当时的快照；Zenodo 会事后重试 ingest 并可能成功。下一轮我又把「面板显示无版本 DOI」当成事实写进 CHANGELOG，事后证明 1.0.1 实际铸出了 DOI。**面板读数不可作为「无记录」的终局证据**——须以 `GET /api/records/{id}/versions` 的实际返回为准 |
 
 ### 研究发现：自审全绿（含 preflight）仍放行了坏的 `.zenodo.json`
 
@@ -93,13 +95,13 @@
 |---|---|
 | 记录 | https://github.com/Yi-Ting-zheng/emf_demo/releases/tag/1.0.1 |
 | tag 指向 | 3e7a9d8（落后当时 HEAD 5c0a74c 一笔） |
-| 版本 DOI | **无**。Zenodo 联动 ingest 失败，未铸出版本 DOI（概念 DOI 10.5281/zenodo.23056474 恒定，但仍只有 v1.0.0 一个版本记录） |
+| 版本 DOI | **10.5281/zenodo.23065720**（`publication` / `workingpaper`）。首次提交触发时 Zenodo GitHub 联动面板报 `{'metadata': {'resource_type': ['Missing data for required field.']}}`，面板当时显示「无版本记录」；Zenodo 事后重试 ingest 成功，铸出版本 DOI。同期另有一条同版本号重复记录 `10.5281/zenodo.23065691`（同日期、同 `publication`/`workingpaper`），源于两次 Release/tag 事件，已由维护者删除。概念 DOI 10.5281/zenodo.23056474 恒定 |
 | 缺陷 | 该 tag 的树内**无** .gitattributes，11/11 文本文件为 CRLF，MANIFEST_EMF.json 在归档副本上自校验失败 |
 | 症状 | 下载者执行 mk_manifest.py --verify 得「框架完整性已失守」 |
 | 闸门实测 | 
 elease_preflight.py --tag 1.0.1 判 **4 项阻断**（tag 落后 / 缺 .gitattributes / 归档树 CRLF×11 / 归档树哈希锁不自洽）；判 **5 项阻断**（追加 Zenodo schema，见下节） |
 | 根因 | 发布动作（打 tag）与验证动作（跑校验）之间无强制闸门，二者靠人工记忆对齐 |
-| 处置 | **降级不删除**：1.0.1 保留为该缺陷的审计证据；修正走 1.0.2 新版本 DOI |
+| 处置 | **降级不删除**：1.0.1 保留为该缺陷的审计证据（版本 DOI `10.5281/zenodo.23065720`）；修正走 1.0.2 新版本 DOI |
 | 防线 | emf_demo/release_preflight.py（5 闸门，第 4 项解包 tag 树实跑，第 5 项校 Zenodo schema）已并入发布流程 |
 
 ## [1.0.1] — 已发布（2026-09-30）；框架 v1.0.3（审计器判据修正）
